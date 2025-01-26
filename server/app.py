@@ -24,6 +24,13 @@ api = Api(app)
 def index():
     return "<h1>Code challenge</h1>"
 
+# #Function to initialize database
+# def initialize_database():
+#     with app.ap_context():
+#         db.create_all
+#         print("Database initialized successfully!")
+
 
 if __name__ == "__main__":
+    #initialize_database() # Ensure the database is initialized before starting the server
     app.run(port=5555, debug=True)
