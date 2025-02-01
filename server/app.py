@@ -28,7 +28,7 @@ def index():
 @app.route("/restaurants", methods=["GET"])
 def get_restaurants():
     restaurants = Restaurant.query.all()
-    response = [restaurant.to_dict() for restaurant in restaurants]
+    response = [restaurant.to_dict(rules=("-restaurant_pizzas",)) for restaurant in restaurants]
     return jsonify(response), 200
 
 
@@ -36,7 +36,8 @@ def get_restaurants():
 def get_restaurant_by_id(id):
     restaurant = Restaurant.query.get(id)
     if restaurant:
-        response = restaurant.to_dict(include=["restaurant_pizzas", "restaurant_pizzas.pizza"])
+        response = restaurant.to_dict(rules=("-restaurant_pizzas.restaurant",))
+
         return jsonify(response), 200
     else:
         return jsonify({"error": "Restaurant not found"}), 404
