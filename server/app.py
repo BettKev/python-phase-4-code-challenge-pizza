@@ -14,6 +14,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.json.compact = False
 
 migrate = Migrate(app, db)
+
 db.init_app(app)
 
 api = Api(app)
@@ -24,75 +25,53 @@ def index():
     return "<h1>Code challenge</h1>"
 
 
-# Routes
 @app.route("/restaurants", methods=["GET"])
 def get_restaurants():
     restaurants = Restaurant.query.all()
-    response = [restaurant.to_dict(rules=("-restaurant_pizzas",)) for restaurant in restaurants]
-    return jsonify(response), 200
+    return jsonify([restaurant.to_dict(only=('id', 'name', 'address')) for restaurant in restaurants])
 
-
-@app.route("/restaurants/<int:id>", methods=["GET"])
-def get_restaurant_by_id(id):
-    restaurant = Restaurant.query.get(id)
+@app.route('/restaurants/<int:id>', methods=['GET'])
+def get_restaurant(id):
+    restaurant = db.session.get(Restaurant, id)
     if restaurant:
-        response = restaurant.to_dict(rules=("-restaurant_pizzas.restaurant",))
-
-        return jsonify(response), 200
+        return jsonify(restaurant.to_dict(rules=('-restaurant_pizzas.restaurant', 'pizzas.restaurants')))
     else:
-        return jsonify({"error": "Restaurant not found"}), 404
+        return make_response(jsonify(error="Restaurant not found")), 404
 
-
-@app.route("/restaurants/<int:id>", methods=["DELETE"])
+@app.route('/restaurants/<int:id>', methods=['DELETE'])
 def delete_restaurant(id):
-    restaurant = Restaurant.query.get(id)
+    restaurant = db.session.get(Restaurant, id)
     if restaurant:
         db.session.delete(restaurant)
         db.session.commit()
-        return "", 204
+        return '', 204
     else:
-        return jsonify({"error": "Restaurant not found"}), 404
+        return make_response(jsonify(error="Restaurant not found")), 404
 
-
-@app.route("/pizzas", methods=["GET"])
+@app.route("/pizzas", methods=['GET'])
 def get_pizzas():
     pizzas = Pizza.query.all()
-    response = [pizza.to_dict() for pizza in pizzas]
-    return jsonify(response), 200
+    return jsonify([pizza.to_dict(only=('id', 'name', 'ingredients')) for pizza in pizzas])
 
-
-@app.route("/restaurant_pizzas", methods=["POST"])
+@app.route("/restaurant_pizzas", methods=['POST'])
 def create_restaurant_pizza():
     data = request.get_json()
-
-    # Validate input
-    price = data.get("price")
-    pizza_id = data.get("pizza_id")
-    restaurant_id = data.get("restaurant_id")
-
-    if not (1 <= price <= 30):
-        return jsonify({"errors": ["Price must be between 1 and 30"]}), 400
-
     try:
-        # Check if associated Pizza and Restaurant exist
-        pizza = Pizza.query.get(pizza_id)
-        restaurant = Restaurant.query.get(restaurant_id)
-
-        if not pizza or not restaurant:
-            return jsonify({"errors": ["Invalid pizza_id or restaurant_id"]}), 400
-
-        # Create new RestaurantPizza
-        restaurant_pizza = RestaurantPizza(price=price, pizza_id=pizza_id, restaurant_id=restaurant_id)
-        db.session.add(restaurant_pizza)
+        new_restaurant_pizza = RestaurantPizza(
+            price=data['price'],
+            pizza_id=data['pizza_id'],
+            restaurant_id=data['restaurant_id']
+        )
+        db.session.add(new_restaurant_pizza)
         db.session.commit()
-
-        # Format response
-        response = restaurant_pizza.to_dict(include=["pizza", "restaurant"])
-        return jsonify(response), 201
-
+        return new_restaurant_pizza.to_dict(), 201
+    
     except Exception as e:
-        return jsonify({"errors": [str(e)]}), 400
-
+        print (e)
+        return {'errors':["validation errors"]}, 400
 
 if __name__ == "__main__":
-    app.run(port=5555, debug=True)
+    try:
+        app.run(port=5555, debug=True)
+    except Exception as e:
+        print(f"An error occurred while starting the application: {e}")
